@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+package billing;
+
+service BillingService {
+    rpc GerarFatura (GerarFaturaRequest) returns (FaturaResponse);
+    rpc ObterFaturaPorDiagnostico (ObterFaturaRequest) returns (FaturaResponse);
+    rpc PagarFatura (PagarFaturaRequest) returns (FaturaResponse);
+}
+
+message GerarFaturaRequest {
+    int32 diagnostico_id = 1;
+    float valor_peca = 2;
+    string categoria_peca = 3;
+}
+
+message ObterFaturaRequest {
+    int32 diagnostico_id = 1;
+}
+
+message PagarFaturaRequest {
+    int32 fatura_id = 1;
+    string forma_pagamento = 2; // "PIX", "CARTAO", "DINHEIRO"
+}
+
+message Fatura {
+    int32 id = 1;
+    int32 diagnostico_id = 2;
+    float valor_peca = 3;
+    float valor_mao_de_obra = 4;
+    float valor_total = 5;
+    string status_pagamento = 6; // "PENDENTE", "PAGO"
+    string forma_pagamento = 7;
+    string data_faturamento = 8;
+    float desconto_aplicado = 9;
+}
+
+message FaturaResponse {
+    bool sucesso = 1;
+    string mensagem = 2;
+    Fatura fatura = 3;
+}

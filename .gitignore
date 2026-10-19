@@ -1,0 +1,25 @@
+# Ambientes virtuais
+venv/
+env/
+.env
+*.env
+
+# Ficheiros compilados Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Ficheiros de registo e execução
+*.log
+*.pid
+
+# Ficheiros de sistema e IDEs
+.vscode/
+.idea/
+.DS_Store
+
+# Ficheiros temporários de migração ou testes
+*.tmp
+atualizar_*.py
+corrigir_*.py
+aplicar_*.py

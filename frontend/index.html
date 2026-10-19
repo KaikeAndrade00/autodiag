@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AutoDiag - Enterprise Workshop & Inventory ERP</title>
+  <script src="https://cdn.tailwindcss.com">
+
+
+
+function abrirModalAjuste(id, nome, saldo) {
+    document.getElementById("ajustePecaId").value = id;
+    document.getElementById("ajusteNomePeca").innerText = nome;
+    document.getElementById("ajusteSaldoAtual").innerText = saldo;
+    document.getElementById("ajusteQtd").value = "5";
+    document.getElementById("ajusteFeedback").style.display = "none";
+    const modal = document.getElementById("modalAjusteEstoque");
+    modal.style.display = "flex";
+}
+
+function fecharModalAjuste() {
+    document.getElementById("modalAjusteEstoque").style.display = "none";
+}
+
+async function confirmarAjusteModal() {
+    const id = document.getElementById("ajustePecaId").value;
+    const tipo = document.getElementById("ajusteTipo").value;
+    const qtd = parseInt(document.getElementById("ajusteQtd").value);
+    const fb = document.getElementById("ajusteFeedback");
+    const btn = document.getElementById("btnConfirmarAjuste");
+
+    if (isNaN(qtd) || qtd <= 0) {
+        fb.style.display = "block";
+        fb.style.background = "#7f1d1d";
+        fb.style.color = "#fecaca";
+        fb.innerText = "Informe uma quantidade maior que zero.";
+        return;
+    }
+
+    if (typeof tokenJwt === "undefined" || !tokenJwt) {
+        fb.style.display = "block";
+        fb.style.background = "#7f1d1d";
+        fb.style.color = "#fecaca";
+        fb.innerText = "Sessão não autenticada. Faça login no topo da página.";
+        return;
+    }
+
+    btn.disabled = true;
+    btn.innerText = "Processando...";
+
+    try {
+        const res = await fetch(`/api/v1/pecas/${id}/ajustar`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${tokenJwt}`
+            },
+            body: JSON.stringify({ tipo: tipo, quantidade: qtd })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            fb.style.display = "block";
+            fb.style.background = "#14532d";
+            fb.style.color = "#bbf7d0";
+            fb.innerText = `✔ ${data.mensagem}`;
+            setTimeout(() => {
+                fecharModalAjuste();
+                btn.disabled = false;
+                btn.innerText = "Confirmar";
+                carregarPecas();
+            }, 900);
+        } else {
+            btn.disabled = false;
+            btn.innerText = "Confirmar";
+            fb.style.display = "block";
+            fb.style.background = "#7f1d1d";
+            fb.style.color = "#fecaca";
+            fb.innerText = `Erro (${res.status}): ${data.detail || data.mensagem}`;
+        }
+    } catch (err) {
+        btn.disabled = false;
+        btn.innerText = "Confirmar";
+        fb.style.display = "block";
+        fb.style.background = "#7f1d1d";
+        fb.style.color = "#fecaca";
+        fb.innerText = "Erro ao conectar com o Gateway: " + err;
+    }
+}
+
+</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Plus Jakarta Sans', sans-serif; }
+    .font-mono { font-family: 'JetBrains Mono', monospace; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen antialiased selection:bg-blue-600 selection:text-white">
+  <div class="max-w-7xl mx-auto p-4 sm:p-8 space-y-6">
+
+    <!-- Topbar Header -->
+    <header class="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-6 border-b border-slate-800/80 gap-4">
+      <div class="space-y-1">
+        <div class="flex items-center gap-3">
+          <div class="h-9 w-9 rounded-xl bg-blue-600/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+          </div>
+          <h1 class="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+            AutoDiag <span class="text-xs px-2 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 font-medium">Oficina Enterprise</span>
+          </h1>
+        </div>
+        <p class="text-xs text-slate-400">Arquitetura Distribuída gRPC Service-to-Service + FastAPI Gateway + Cloud SQL</p>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <div class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900 border border-slate-800">
+          <span class="inline-block w-2 h-2 rounded-full bg-rose-500" id="status-dot"></span>
+          <span class="text-xs text-slate-400 font-mono" id="status-text">Sem Token JWT</span>
+        </div>
+        <button id="btn-login-modal" onclick="fazerLogin()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white rounded-xl text-xs font-semibold transition shadow-lg shadow-blue-600/20">
+          Autenticar Mecânico
+        </button>
+      </div>
+    </header>
+
+    <!-- Alertas Interativos -->
+    <div id="alert-box" class="hidden p-4 rounded-xl border text-sm flex justify-between items-start transition-all">
+      <div class="flex items-start gap-3">
+        <div id="alert-icon" class="mt-0.5"></div>
+        <span id="alert-msg" class="leading-relaxed"></span>
+      </div>
+      <button onclick="fecharAlerta()" class="text-slate-400 hover:text-white font-bold ml-4">&times;</button>
+    </div>
+
+    <!-- KPIs de Visão Executiva -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div class="bg-slate-900/60 border border-slate-800/80 p-4 rounded-2xl flex items-center gap-4">
+        <div class="h-10 w-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        </div>
+        <div>
+          <div class="text-xs text-slate-400 font-medium">Ordens em Análise</div>
+          <div class="text-xl font-bold text-white font-mono" id="kpi-analise">0</div>
+        </div>
+      </div>
+
+      <div class="bg-slate-900/60 border border-slate-800/80 p-4 rounded-2xl flex items-center gap-4">
+        <div class="h-10 w-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        </div>
+        <div>
+          <div class="text-xs text-slate-400 font-medium">Reparos Concluídos</div>
+          <div class="text-xl font-bold text-white font-mono" id="kpi-concluido">0</div>
+        </div>
+      </div>
+
+      <div class="bg-slate-900/60 border border-slate-800/80 p-4 rounded-2xl flex items-center gap-4">
+        <div class="h-10 w-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
+        </div>
+        <div>
+          <div class="text-xs text-slate-400 font-medium">Itens em Estoque</div>
+          <div class="text-xl font-bold text-white font-mono" id="kpi-estoque-total">--</div>
+        </div>
+      </div>
+
+      <div class="bg-slate-900/60 border border-slate-800/80 p-4 rounded-2xl flex items-center gap-4">
+        <div class="h-10 w-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        </div>
+        <div>
+          <div class="text-xs text-slate-400 font-medium">Preço Médio Peças</div>
+          <div class="text-xl font-bold text-emerald-400 font-mono" id="kpi-faturamento">R$ 150,00</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Almoxarifado / Estoque Físico -->
+    <section class="bg-slate-900/40 border border-slate-800/80 p-5 rounded-2xl">
+      <div class="flex justify-between items-center mb-4">
+        <div class="flex items-center gap-2">
+          <h2 class="text-sm font-semibold text-white">Almoxarifado & Catálogo de Peças</h2>
+          <span class="text-[10px] px-2 py-0.5 rounded bg-blue-500/10 border border-blue-500/20 text-blue-400 font-mono">CatalogService :50051</span>
+        </div>
+        <button onclick="carregarCatalogos()" class="text-xs text-slate-400 hover:text-white px-3 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-800 transition flex items-center gap-1.5">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+          Sincronizar
+        </button>
+      </div>
+      <div id="grid-estoque" class="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div class="p-4 bg-slate-950/60 rounded-xl border border-slate-800 text-center text-slate-500 text-xs">
+          Faça login para carregar o saldo do almoxarifado em tempo real.
+        </div>
+      </div>
+    </section>
+
+    <!-- Área de Operações (Split 1/3 e 2/3) -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+      <!-- Formulário de Nova OS -->
+      <section class="bg-slate-900/40 border border-slate-800/80 p-6 rounded-2xl flex flex-col justify-between">
+        <div>
+          <h2 class="text-base font-bold text-white mb-1">Abertura de Ordem de Serviço</h2>
+          <p class="text-xs text-slate-400 mb-5">Triagem de entrada: registro da queixa e indicação da peça</p>
+
+          <form id="form-diagnostico" onsubmit="enviarDiagnostico(event)" class="space-y-4">
+            <div class="space-y-3">
+              <div>
+                <label class="block text-xs font-semibold text-slate-300 mb-1">Nome do Proprietário</label>
+                <input type="text" id="cliente_nome" placeholder="Ex: Carlos Silva" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-300 mb-1">Veículo em Atendimento</label>
+                <select id="veiculo_id" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500 transition">
+                  <option value="">Aguardando autenticação...</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-300 mb-1">Peça Diagnosticada</label>
+                <select id="peca_id" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500 transition">
+                  <option value="">Aguardando autenticação...</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-300 mb-1">Queixa Relatada pelo Cliente</label>
+                <textarea id="descricao_sintoma" rows="2" placeholder="Ex: Perda de potência ao acelerar e ruído metálico" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition"></textarea>
+              </div>
+            </div>
+
+            <button type="submit" id="btn-submit" class="w-full py-2.5 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white rounded-xl font-semibold text-xs transition shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+              Emitir OS (201 Created)
+            </button>
+          </form>
+        </div>
+
+        <div class="mt-6 pt-5 border-t border-slate-800/80">
+          <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Testes de Segurança & Borda</div>
+          <div class="grid grid-cols-2 gap-2">
+            <button onclick="testarSemToken()" class="px-2 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/20 rounded-lg text-xs font-mono transition">
+              Forçar 401 (Sem JWT)
+            </button>
+            <button onclick="testarNomeInvalido()" class="px-2 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/20 rounded-lg text-xs font-mono transition">
+              Forçar 400 (Nome 123)
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Listagem de Ordens -->
+      <section class="bg-slate-900/40 border border-slate-800/80 p-6 rounded-2xl lg:col-span-2 flex flex-col justify-between">
+        <div>
+          <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+            <div>
+              <h2 class="text-base font-bold text-white">Ordens de Serviço em Aberto</h2>
+              <p class="text-xs text-slate-400">Filtragem Server-Side: Web ➔ Gateway ➔ gRPC ➔ Cloud SQL</p>
+            </div>
+            <button onclick="carregarDiagnosticos()" class="text-xs text-slate-400 hover:text-white px-3 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-800 transition flex items-center gap-1.5">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+              Recarregar
+            </button>
+          </div>
+
+          <!-- Abas de Filtro -->
+          <div class="flex items-center gap-1.5 p-1 bg-slate-950 border border-slate-800/80 rounded-xl mb-4 text-xs font-medium">
+            <button id="tab-todas" onclick="filtrarStatus('')" class="flex-1 py-1.5 px-3 rounded-lg transition bg-blue-600 text-white font-semibold">
+              Todas as Ordens
+            </button>
+            <button id="tab-analise" onclick="filtrarStatus('EM_ANALISE')" class="flex-1 py-1.5 px-3 rounded-lg transition text-slate-400 hover:text-white">
+              Em Análise
+            </button>
+            <button id="tab-concluido" onclick="filtrarStatus('CONCLUIDO')" class="flex-1 py-1.5 px-3 rounded-lg transition text-slate-400 hover:text-white">
+              Concluídas
+            </button>
+          </div>
+
+          <!-- Tabela -->
+          <div class="overflow-x-auto rounded-xl border border-slate-800/80 bg-slate-950/40">
+            <table class="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr class="border-b border-slate-800 text-[11px] font-semibold text-slate-400 uppercase tracking-wider bg-slate-900/60">
+                  <th class="py-3 px-3">OS</th>
+                  <th class="py-3 px-3">Cliente / Veículo</th>
+                  <th class="py-3 px-3">Peça Diagnosticada</th>
+                  <th class="py-3 px-3">Queixa</th>
+                  <th class="py-3 px-3">Status</th>
+                  <th class="py-3 px-3 text-center">Ação Transacional</th>
+                </tr>
+              </thead>
+              <tbody id="tabela-diagnosticos" class="divide-y divide-slate-800/60 text-slate-300">
+                <tr>
+                  <td colspan="6" class="py-8 text-center text-slate-500">Faça login para carregar as ordens de serviço.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="mt-4 pt-3 border-t border-slate-800/60 text-[11px] text-slate-500 flex justify-between items-center">
+          <span>Persistência garantida via PostgreSQL (Cloud SQL)</span>
+          <span class="font-mono">Cluster: 3 gRPC Nodes</span>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- Modal Recibo / Faturamento -->
+  <div id="modal-fatura" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 w-full max-w-md rounded-2xl p-6 shadow-2xl space-y-5">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+        <div class="flex items-center gap-2">
+          <div class="h-7 w-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+          </div>
+          <h3 class="text-sm font-bold text-white">Comprovante de Faturamento</h3>
+        </div>
+        <button onclick="fecharModalFatura()" class="text-slate-400 hover:text-white font-bold text-lg leading-none">&times;</button>
+      </div>
+
+      <div class="space-y-3" id="corpo-fatura">
+        Carregando dados...
+      </div>
+
+      <div id="rodape-fatura" class="pt-3 border-t border-slate-800 flex gap-2"></div>
+    </div>
+  </div>
+
+  <script>
+    let tokenJwt = "";
+    const API_BASE = window.location.origin;
+    let statusFiltroAtual = "";
+
+    function showAlert(mensagem, tipo = "info") {
+      const box = document.getElementById("alert-box");
+      const msg = document.getElementById("alert-msg");
+      const icon = document.getElementById("alert-icon");
+
+      const iconSuccess = '<svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>';
+      const iconWarn = '<svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>';
+      const iconError = '<svg class="w-5 h-5 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>';
+
+      box.className = "p-4 rounded-xl border text-sm flex justify-between items-start transition-all " +
+        (tipo === "error" ? "bg-rose-500/10 border-rose-500/20 text-rose-200" :
+         tipo === "warning" ? "bg-amber-500/10 border-amber-500/20 text-amber-200" :
+         "bg-emerald-500/10 border-emerald-500/20 text-emerald-200");
+      
+      icon.innerHTML = (tipo === "error" ? iconError : tipo === "warning" ? iconWarn : iconSuccess);
+      msg.innerHTML = mensagem;
+      box.classList.remove("hidden");
+    }
+
+    function fecharAlerta() {
+      document.getElementById("alert-box").classList.add("hidden");
+    }
+
+    function fecharModalFatura() {
+      document.getElementById("modal-fatura").classList.add("hidden");
+    }
+
+    function filtrarStatus(status) {
+      statusFiltroAtual = status;
+      const btnTodas = document.getElementById("tab-todas");
+      const btnAnalise = document.getElementById("tab-analise");
+      const btnConcluido = document.getElementById("tab-concluido");
+
+      const inativo = "flex-1 py-1.5 px-3 rounded-lg transition text-slate-400 hover:text-white";
+      const ativo = "flex-1 py-1.5 px-3 rounded-lg transition bg-blue-600 text-white font-semibold shadow-sm";
+
+      btnTodas.className = inativo;
+      btnAnalise.className = inativo;
+      btnConcluido.className = inativo;
+
+      if (status === "") btnTodas.className = ativo;
+      else if (status === "EM_ANALISE") btnAnalise.className = ativo;
+      else if (status === "CONCLUIDO") btnConcluido.className = ativo;
+
+      carregarDiagnosticos();
+    }
+
+    async function fazerLogin() {
+      try {
+        const resp = await fetch(`${API_BASE}/auth/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ usuario: "mecanico", senha: "123456" })
+        });
+        if (resp.status === 200) {
+          const data = await resp.json();
+          tokenJwt = data.access_token;
+          document.getElementById("status-dot").className = "inline-block w-2 h-2 rounded-full bg-emerald-400";
+          document.getElementById("status-text").innerText = "JWT Válido (Técnico)";
+          document.getElementById("btn-login-modal").classList.add("hidden");
+          showAlert("Sessão autenticada na borda via JWT. Serviços gRPC sincronizados!", "success");
+          carregarCatalogos();
+          carregarDiagnosticos();
+        } else {
+          showAlert("Falha no login: HTTP " + resp.status, "error");
+        }
+      } catch (err) {
+        showAlert("Erro de conexão: " + err.message, "error");
+      }
+    }
+
+    async function carregarCatalogos() {
+      try {
+        const [respVeic, respPecas] = await Promise.all([
+          fetch(`${API_BASE}/api/v1/veiculos`, { headers: { "Authorization": `Bearer ${tokenJwt}` } }),
+          fetch(`${API_BASE}/api/v1/pecas`, { headers: { "Authorization": `Bearer ${tokenJwt}` } })
+        ]);
+        if (respVeic.ok && respPecas.ok) {
+          const veiculos = await respVeic.json();
+          const pecas = await respPecas.json();
+
+          document.getElementById("veiculo_id").innerHTML = "<option value=\"\">Selecione o veículo...</option>" +
+            veiculos.map(v => `<option value="${v.id}">${v.modelo} (${v.montadora} - ${v.ano})</option>`).join("");
+          
+          document.getElementById("peca_id").innerHTML = "<option value=\"\">Selecione a peça...</option>" +
+            pecas.map(p => `<option value="${p.id}">${p.nome} - R$ ${p.preco.toFixed(2)} (${p.categoria})</option>`).join("");
+
+          let totalEstoque = 0;
+          const grid = document.getElementById("grid-estoque");
+          grid.innerHTML = pecas.map(p => {
+            totalEstoque += p.quantidade_estoque;
+            return `
+              <div class="bg-slate-950/80 border border-slate-800/80 p-3.5 rounded-xl flex justify-between items-center hover:border-slate-700 transition">
+                <div>
+                  <div class="text-xs font-semibold text-white">${p.nome}</div>
+                  <div class="text-[11px] font-mono text-slate-400">R$ ${p.preco.toFixed(2)} &bull; ${p.categoria}</div>
+                </div>
+                <span class="px-2 py-1 rounded-lg text-xs font-mono font-semibold ${p.quantidade_estoque > 0 ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-rose-500/10 text-rose-400 border border-rose-500/20"}">
+                  ${p.quantidade_estoque} un <button onclick="abrirModalAjuste(${p.id}, '${p.nome}',${p.quantidade_estoque})" class="btn-sm" style="margin-left: 8px; padding: 2px 8px; font-size: 11px; background: #2563eb; color: white; border-radius: 4px; border: none; cursor: pointer;">⚙ Ajustar</button>
+                </span>
+              </div>
+            `;
+          }).join("");
+
+          document.getElementById("kpi-estoque-total").innerText = totalEstoque + " un";
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    async function carregarDiagnosticos() {
+      if (!tokenJwt) return;
+      try {
+        const url = statusFiltroAtual ? `${API_BASE}/api/v1/diagnosticos?status=${statusFiltroAtual}` : `${API_BASE}/api/v1/diagnosticos`;
+        const resp = await fetch(url, { headers: { "Authorization": `Bearer ${tokenJwt}` } });
+        const dados = await resp.json();
+        
+        let analiseCount = 0;
+        let concluidoCount = 0;
+        if (Array.isArray(dados)) {
+          dados.forEach(d => {
+            if (d.status === "EM_ANALISE") analiseCount++;
+            else if (d.status === "CONCLUIDO") concluidoCount++;
+          });
+          document.getElementById("kpi-analise").innerText = analiseCount;
+          document.getElementById("kpi-concluido").innerText = concluidoCount;
+        }
+
+        const tbody = document.getElementById("tabela-diagnosticos");
+        if (!Array.isArray(dados) || dados.length === 0) {
+          tbody.innerHTML = "<tr><td colspan=\"6\" class=\"py-8 text-center text-slate-500 text-xs\">Nenhuma ordem encontrada para o filtro selecionado.</td></tr>";
+          return;
+        }
+
+        tbody.innerHTML = dados.map(d => `
+          <tr class="hover:bg-slate-900/50 transition">
+            <td class="py-3 px-3 font-mono text-slate-400 text-[11px]">#${d.id}</td>
+            <td class="py-3 px-3">
+              <div class="font-medium text-white text-xs">${d.cliente_nome}</div>
+              <div class="text-[11px] text-slate-400">${d.veiculo_modelo}</div>
+            </td>
+            <td class="py-3 px-3 text-blue-400 font-medium text-xs">${d.peca_nome}</td>
+            <td class="py-3 px-3 text-[11px] text-slate-400 max-w-[180px] truncate" title="${d.descricao_sintoma}">
+              ${d.descricao_sintoma}
+            </td>
+            <td class="py-3 px-3">
+              <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold tracking-wide ${d.status === "CONCLUIDO" ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-amber-500/10 text-amber-300 border border-amber-500/20"}">
+                <span class="w-1.5 h-1.5 rounded-full ${d.status === "CONCLUIDO" ? "bg-emerald-400" : "bg-amber-400"}"></span>
+                ${d.status === "EM_ANALISE" ? "EM ANÁLISE" : "CONCLUÍDO"}
+              </span>
+            </td>
+            <td class="py-3 px-3 text-center">
+              ${d.status === "EM_ANALISE" ? `
+                <button onclick="concluirOrdem(${d.id})" class="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white text-[11px] font-semibold rounded-lg shadow-sm transition flex items-center gap-1 mx-auto">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                  Concluir & Faturar
+                </button>
+              ` : `
+                <button onclick="verFatura(${d.id})" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 active:bg-slate-850 text-slate-200 border border-slate-700 text-[11px] font-semibold rounded-lg transition flex items-center gap-1 mx-auto">
+                  <svg class="w-3.5 h-3.5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                  Recibo
+                </button>
+              `}
+            </td>
+          </tr>
+        `).join("");
+      } catch (err) {
+        showAlert("Erro ao listar ordens: " + err.message, "error");
+      }
+    }
+
+    async function enviarDiagnostico(e) {
+      e.preventDefault();
+      const btn = document.getElementById("btn-submit");
+      btn.disabled = true;
+
+      const payload = {
+        cliente_nome: document.getElementById("cliente_nome").value,
+        veiculo_id: parseInt(document.getElementById("veiculo_id").value) || 0,
+        peca_id: parseInt(document.getElementById("peca_id").value) || 0,
+        descricao_sintoma: document.getElementById("descricao_sintoma").value
+      };
+
+      try {
+        const resp = await fetch(`${API_BASE}/api/v1/diagnosticos`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${tokenJwt}` },
+          body: JSON.stringify(payload)
+        });
+        const data = await resp.json();
+        if (resp.status === 201) {
+          showAlert("<b>HTTP 201 Created:</b> Ordem de Serviço #" + data.dados.id + " cadastrada com sucesso!", "success");
+          document.getElementById("descricao_sintoma").value = "";
+          carregarDiagnosticos();
+        } else if (resp.status === 400) {
+          const erros = data.detalhes ? data.detalhes.join("<br>") : (data.detail || data.mensagem);
+          showAlert("<b>HTTP 400 Bad Request:</b><br>" + erros, "warning");
+        } else if (resp.status === 401) {
+          showAlert("<b>HTTP 401 Unauthorized:</b> Sessão inválida ou sem JWT.", "error");
+        }
+      } catch (err) {
+        showAlert("Falha ao criar: " + err.message, "error");
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function concluirOrdem(id) {
+      try {
+        const resp = await fetch(`${API_BASE}/api/v1/diagnosticos/${id}/concluir`, {
+          method: "PUT",
+          headers: { "Authorization": `Bearer ${tokenJwt}` }
+        });
+        const data = await resp.json();
+        if (resp.status === 200) {
+          showAlert("<b>Transação Distribuída Concluída:</b> " + data.mensagem, "success");
+          carregarCatalogos();
+          carregarDiagnosticos();
+          verFatura(id);
+        } else {
+          showAlert("<b>Falha na Orquestração:</b> " + (data.detail || data.mensagem), "warning");
+        }
+      } catch (err) {
+        showAlert("Erro de conclusão: " + err.message, "error");
+      }
+    }
+
+    async function verFatura(diagnosticoId) {
+      const modal = document.getElementById("modal-fatura");
+      const corpo = document.getElementById("corpo-fatura");
+      const rodape = document.getElementById("rodape-fatura");
+      modal.classList.remove("hidden");
+      corpo.innerHTML = "<div class=\"text-xs text-slate-400 py-4 text-center\">Consultando microsserviço de Billing...</div>";
+
+      try {
+        const resp = await fetch(`${API_BASE}/api/v1/faturas/${diagnosticoId}`, {
+          headers: { "Authorization": `Bearer ${tokenJwt}` }
+        });
+        if (!resp.ok) {
+          corpo.innerHTML = `<span class="text-rose-400 text-xs">Fatura não encontrada para esta ordem.</span>`;
+          rodape.innerHTML = `<button onclick="fecharModalFatura()" class="w-full py-2 bg-slate-800 rounded-xl text-xs font-semibold">Fechar</button>`;
+          return;
+        }
+
+        const fat = await resp.json();
+        const temDesconto = fat.desconto_aplicado && fat.desconto_aplicado > 0;
+
+        corpo.innerHTML = `
+          <div class="bg-slate-950 p-3.5 rounded-xl border border-slate-800 space-y-1.5 text-xs">
+            <div class="flex justify-between">
+              <span class="text-slate-400">Ordem Vinculada:</span>
+              <span class="font-mono font-semibold text-white">#${fat.diagnostico_id}</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-400">Documento Fiscal:</span>
+              <span class="font-mono text-indigo-400 font-semibold">FAT-${fat.id.toString().padStart(4, '0')}</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-400">Data de Emissão:</span>
+              <span class="font-mono text-slate-300 text-[11px]">${fat.data_faturamento}</span>
+            </div>
+          </div>
+
+          <div class="space-y-2 py-1 text-xs">
+            <div class="flex justify-between text-slate-400">
+              <span>Subtotal Peça (Catalog):</span>
+              <span class="text-white font-mono">R$ ${fat.valor_peca.toFixed(2)}</span>
+            </div>
+            <div class="flex justify-between text-slate-400">
+              <span>Mão de Obra Técnica (Billing):</span>
+              <span class="text-white font-mono">R$ ${fat.valor_mao_de_obra.toFixed(2)}</span>
+            </div>
+            ${temDesconto ? `
+              <div class="flex justify-between text-emerald-400">
+                <span>Desconto Condicional (PIX 5%):</span>
+                <span class="font-mono font-semibold">- R$ ${fat.desconto_aplicado.toFixed(2)}</span>
+              </div>
+            ` : ""}
+            <div class="flex justify-between text-sm font-bold pt-2 border-t border-slate-800">
+              <span class="text-white">Total a Pagar:</span>
+              <span class="text-emerald-400 font-mono text-base">R$ ${fat.valor_total.toFixed(2)}</span>
+            </div>
+          </div>
+
+          <div class="p-2.5 rounded-xl text-center text-xs font-semibold tracking-wide ${fat.status_pagamento === "PAGO" ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-amber-500/10 text-amber-300 border border-amber-500/20"}">
+            ${fat.status_pagamento === "PAGO" ? `LIQUIDADO &bull; ${fat.forma_pagamento}` : "AGUARDANDO PAGAMENTO NO BALCÃO"}
+          </div>
+        `;
+
+        if (fat.status_pagamento === "PENDENTE") {
+          rodape.innerHTML = `
+            <button onclick="registrarPagamento(${fat.id}, 'PIX')" class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 rounded-xl text-xs font-semibold text-white shadow-sm transition">
+              Pagar com PIX (-5% OFF)
+            </button>
+            <button onclick="registrarPagamento(${fat.id}, 'CARTAO')" class="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 rounded-xl text-xs font-semibold text-white shadow-sm transition">
+              Pagar Cartão
+            </button>
+          `;
+        } else {
+          rodape.innerHTML = `
+            <button onclick="fecharModalFatura()" class="w-full py-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs font-semibold text-white transition">
+              Fechar Comprovante
+            </button>
+          `;
+        }
+      } catch (err) {
+        corpo.innerHTML = `<span class="text-rose-400 text-xs">Erro: ${err.message}</span>`;
+      }
+    }
+
+    async function registrarPagamento(faturaId, forma) {
+      try {
+        const resp = await fetch(`${API_BASE}/api/v1/faturas/${faturaId}/pagar`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${tokenJwt}` },
+          body: JSON.stringify({ forma_pagamento: forma })
+        });
+        const data = await resp.json();
+        if (resp.ok) {
+          showAlert(`<b>Liquidação Confirmada:</b> ${data.mensagem}`, "success");
+          fecharModalFatura();
+          carregarDiagnosticos();
+        } else {
+          showAlert("Falha ao registrar pagamento.", "error");
+        }
+      } catch (err) {
+        showAlert("Erro: " + err.message, "error");
+      }
+    }
+
+    async function testarSemToken() {
+      const resp = await fetch(`${API_BASE}/api/v1/diagnosticos`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cliente_nome: "Teste", veiculo_id: 1, peca_id: 1, descricao_sintoma: "Barulho no freio" })
+      });
+      const data = await resp.json();
+      showAlert("<b>HTTP " + resp.status + " Unauthorized:</b> " + (data.detail || "Bloqueado na borda sem JWT."), "error");
+    }
+
+    async function testarNomeInvalido() {
+      const resp = await fetch(`${API_BASE}/api/v1/diagnosticos`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${tokenJwt}` },
+        body: JSON.stringify({ cliente_nome: "12345", veiculo_id: 1, peca_id: 1, descricao_sintoma: "Motor engasgando" })
+      });
+      const data = await resp.json();
+      const erros = data.detalhes ? data.detalhes.join("<br>") : (data.detail || data.mensagem);
+      showAlert("<b>HTTP " + resp.status + " Bad Request:</b><br>" + erros, "warning");
+    }
+  
+
+
+
+function abrirModalAjuste(id, nome, saldo) {
+    document.getElementById("ajustePecaId").value = id;
+    document.getElementById("ajusteNomePeca").innerText = nome;
+    document.getElementById("ajusteSaldoAtual").innerText = saldo;
+    document.getElementById("ajusteQtd").value = "5";
+    document.getElementById("ajusteFeedback").style.display = "none";
+    const modal = document.getElementById("modalAjusteEstoque");
+    modal.style.display = "flex";
+}
+
+function fecharModalAjuste() {
+    document.getElementById("modalAjusteEstoque").style.display = "none";
+}
+
+async function confirmarAjusteModal() {
+    const id = document.getElementById("ajustePecaId").value;
+    const tipo = document.getElementById("ajusteTipo").value;
+    const qtd = parseInt(document.getElementById("ajusteQtd").value);
+    const fb = document.getElementById("ajusteFeedback");
+    const btn = document.getElementById("btnConfirmarAjuste");
+
+    if (isNaN(qtd) || qtd <= 0) {
+        fb.style.display = "block";
+        fb.style.background = "#7f1d1d";
+        fb.style.color = "#fecaca";
+        fb.innerText = "Informe uma quantidade maior que zero.";
+        return;
+    }
+
+    if (typeof tokenJwt === "undefined" || !tokenJwt) {
+        fb.style.display = "block";
+        fb.style.background = "#7f1d1d";
+        fb.style.color = "#fecaca";
+        fb.innerText = "Sessão não autenticada. Faça login no topo da página.";
+        return;
+    }
+
+    btn.disabled = true;
+    btn.innerText = "Processando...";
+
+    try {
+        const res = await fetch(`/api/v1/pecas/${id}/ajustar`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${tokenJwt}`
+            },
+            body: JSON.stringify({ tipo: tipo, quantidade: qtd })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            fb.style.display = "block";
+            fb.style.background = "#14532d";
+            fb.style.color = "#bbf7d0";
+            fb.innerText = `✔ ${data.mensagem}`;
+            setTimeout(() => {
+                fecharModalAjuste();
+                btn.disabled = false;
+                btn.innerText = "Confirmar";
+                carregarPecas();
+            }, 900);
+        } else {
+            btn.disabled = false;
+            btn.innerText = "Confirmar";
+            fb.style.display = "block";
+            fb.style.background = "#7f1d1d";
+            fb.style.color = "#fecaca";
+            fb.innerText = `Erro (${res.status}): ${data.detail || data.mensagem}`;
+        }
+    } catch (err) {
+        btn.disabled = false;
+        btn.innerText = "Confirmar";
+        fb.style.display = "block";
+        fb.style.background = "#7f1d1d";
+        fb.style.color = "#fecaca";
+        fb.innerText = "Erro ao conectar com o Gateway: " + err;
+    }
+}
+
+</script>
+
+<!-- Modal de Ajuste de Estoque -->
+<div id="modalAjusteEstoque" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.65); z-index:9999; align-items:center; justify-content:center;">
+  <div style="background:#1e293b; color:#f8fafc; padding:24px; border-radius:12px; width:90%; max-width:400px; box-shadow:0 12px 30px rgba(0,0,0,0.5); font-family:sans-serif; border: 1px solid #334155;">
+    <h3 style="margin-top:0; font-size:18px; border-bottom:1px solid #334155; padding-bottom:10px; display:flex; align-items:center; gap:8px;">
+      ⚙ <span>Movimentação de Estoque</span>
+    </h3>
+    
+    <div style="margin: 12px 0; font-size:14px; background:#0f172a; padding:10px; border-radius:8px; border:1px solid #334155;">
+      <div style="color:#94a3b8; margin-bottom:4px;">Peça: <b id="ajusteNomePeca" style="color:#f8fafc;">-</b></div>
+      <div style="color:#94a3b8;">Saldo Atual: <span id="ajusteSaldoAtual" style="color:#38bdf8; font-weight:bold;">0</span> un</div>
+    </div>
+    
+    <input type="hidden" id="ajustePecaId">
+    
+    <label style="display:block; font-size:13px; margin-bottom:6px; color:#cbd5e1; font-weight:500;">Tipo de Operação:</label>
+    <select id="ajusteTipo" style="width:100%; padding:10px; margin-bottom:14px; border-radius:6px; border:1px solid #475569; background:#0f172a; color:#fff; font-size:14px; outline:none;">
+      <option value="ENTRADA">📥 ENTRADA (+ Reposição de Peça)</option>
+      <option value="SAIDA">📤 SAÍDA (- Baixa Manual / Descarte)</option>
+    </select>
+    
+    <label style="display:block; font-size:13px; margin-bottom:6px; color:#cbd5e1; font-weight:500;">Quantidade:</label>
+    <input type="number" id="ajusteQtd" min="1" value="5" style="width:100%; box-sizing:border-box; padding:10px; margin-bottom:16px; border-radius:6px; border:1px solid #475569; background:#0f172a; color:#fff; font-size:14px; outline:none;">
+    
+    <div id="ajusteFeedback" style="display:none; padding:10px; border-radius:6px; font-size:13px; margin-bottom:16px; font-weight:500;"></div>
+    
+    <div style="display:flex; justify-content:flex-end; gap:10px;">
+      <button type="button" onclick="fecharModalAjuste()" style="padding:9px 16px; background:#475569; color:#fff; border:none; border-radius:6px; cursor:pointer; font-size:14px; font-weight:500;">Cancelar</button>
+      <button type="button" id="btnConfirmarAjuste" onclick="confirmarAjusteModal()" style="padding:9px 18px; background:#2563eb; color:#fff; border:none; border-radius:6px; cursor:pointer; font-weight:bold; font-size:14px;">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

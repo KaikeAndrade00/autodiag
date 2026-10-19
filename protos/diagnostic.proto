@@ -1,0 +1,46 @@
+syntax = "proto3";
+
+package diagnostic;
+
+service DiagnosticService {
+    rpc CriarDiagnostico (CriarDiagnosticoRequest) returns (DiagnosticoResponse);
+    rpc ListarDiagnosticos (ListarDiagnosticosRequest) returns (ListaDiagnosticosResponse);
+    rpc ConcluirDiagnostico (ConcluirDiagnosticoRequest) returns (DiagnosticoResponse);
+}
+
+message ListarDiagnosticosRequest {
+    string status_filtro = 1;
+}
+
+message CriarDiagnosticoRequest {
+    string cliente_nome = 1;
+    int32 veiculo_id = 2;
+    int32 peca_id = 3;
+    string descricao_sintoma = 4;
+}
+
+message ConcluirDiagnosticoRequest {
+    int32 diagnostico_id = 1;
+}
+
+message Diagnostico {
+    int32 id = 1;
+    string cliente_nome = 2;
+    int32 veiculo_id = 3;
+    string veiculo_modelo = 4;
+    int32 peca_id = 5;
+    string peca_nome = 6;
+    string descricao_sintoma = 7;
+    string status = 8;
+    string data_criacao = 9;
+}
+
+message DiagnosticoResponse {
+    bool sucesso = 1;
+    string mensagem = 2;
+    Diagnostico diagnostico = 3;
+}
+
+message ListaDiagnosticosResponse {
+    repeated Diagnostico diagnosticos = 1;
+}

@@ -1,0 +1,75 @@
+syntax = "proto3";
+
+package catalog;
+
+service CatalogService {
+    rpc ListarVeiculos (EmptyRequest) returns (ListaVeiculosResponse);
+    rpc ListarPecas (EmptyRequest) returns (ListaPecasResponse);
+    rpc ObterVeiculoPorId (IdRequest) returns (VeiculoResponse);
+    rpc ObterPecaPorId (IdRequest) returns (PecaResponse);
+    rpc BaixarEstoque (BaixarEstoqueRequest) returns (BaixarEstoqueResponse);
+    rpc AjustarEstoque (AjustarEstoqueRequest) returns (AjustarEstoqueResponse);
+}
+
+message EmptyRequest {}
+
+message IdRequest {
+    int32 id = 1;
+}
+
+message Veiculo {
+    int32 id = 1;
+    string modelo = 2;
+    string montadora = 3;
+    int32 ano = 4;
+}
+
+message Peca {
+    int32 id = 1;
+    string nome = 2;
+    string categoria = 3;
+    string codigo_referencia = 4;
+    float preco = 5;
+    int32 quantidade_estoque = 6;
+}
+
+message ListaVeiculosResponse {
+    repeated Veiculo veiculos = 1;
+}
+
+message ListaPecasResponse {
+    repeated Peca pecas = 1;
+}
+
+message VeiculoResponse {
+    bool encontrado = 1;
+    Veiculo veiculo = 2;
+}
+
+message PecaResponse {
+    bool encontrado = 1;
+    Peca peca = 2;
+}
+
+message BaixarEstoqueRequest {
+    int32 peca_id = 1;
+    int32 quantidade = 2;
+}
+
+message BaixarEstoqueResponse {
+    bool sucesso = 1;
+    string mensagem = 2;
+    int32 novo_estoque = 3;
+}
+
+message AjustarEstoqueRequest {
+    int32 peca_id = 1;
+    int32 quantidade = 2;
+    string tipo = 3; // "ENTRADA" ou "SAIDA"
+}
+
+message AjustarEstoqueResponse {
+    bool sucesso = 1;
+    string mensagem = 2;
+    int32 novo_estoque = 3;
+}
