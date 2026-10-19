@@ -23,3 +23,4 @@ __pycache__/
 atualizar_*.py
 corrigir_*.py
 aplicar_*.py
+*.save
