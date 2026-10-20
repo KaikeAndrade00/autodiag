@@ -172,7 +172,7 @@ class DiagnosticService(diagnostic_pb2_grpc.DiagnosticServiceServicer):
 
             # 4. Atualiza ordem no Cloud SQL
             cur.execute(
-                "UPDATE diagnosticos SET status = 'CONCLUIDO' WHERE id = %s RETURNING cliente_nome, veiculo_id, descricao_sintoma, data_criacao;",
+                "UPDATE diagnosticos SET status = 'EM_ANALISE' WHERE id = %s RETURNING cliente_nome, veiculo_id, descricao_sintoma, data_criacao;",
                 (diag_id,)
             )
             c_nome, v_id, desc, dt = cur.fetchone()

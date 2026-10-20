@@ -174,6 +174,7 @@ class BillingService(billing_pb2_grpc.BillingServiceServicer):
                 RETURNING diagnostico_id, to_char(data_faturamento, 'YYYY-MM-DD HH24:MI:SS');
             """, (forma, valor_final, desconto, fat_id))
             diag_id, dt = cur.fetchone()
+            cur.execute("UPDATE diagnosticos SET status = 'CONCLUIDO' WHERE id = %s;", (diag_id,))
             conn.commit()
             cur.close()
 
