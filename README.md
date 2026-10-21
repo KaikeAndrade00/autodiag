@@ -1,6 +1,6 @@
 # 🚗 AutoDiag — Sistema Distribuído de Gestão Automotiva
 
-O **AutoDiag** é uma plataforma distribuída desenvolvida para a gestão integrada de serviços automotivos, controle de inventário de peças e liquidação financeira de Ordens de Serviço (OS)[cite: 3]. O projeto foi concebido sobre os pilares fundamentais da computação distribuída, resolvendo desafios de **consistência transacional estrita (ACID)**, **concorrência simultânea (Race Conditions)**, **idempotência de operações** e **comunicação heterogênea** em topologia de nuvem multi-instância no Google Cloud Platform (GCP)[cite: 3].
+O **AutoDiag** é uma plataforma distribuída desenvolvida para a gestão integrada de serviços automotivos, controle de inventário de peças e liquidação financeira de Ordens de Serviço (OS). O projeto foi concebido sobre os pilares fundamentais da computação distribuída, resolvendo desafios de **consistência transacional estrita (ACID)**, **concorrência simultânea (Race Conditions)**, **idempotência de operações** e **comunicação heterogênea** em topologia de nuvem multi-instância no Google Cloud Platform (GCP).
 
 ---
 
@@ -30,9 +30,9 @@ O AutoDiag foi construído como um ecossistema distribuído que desacopla respon
 
 ## 🏛️ Arquitetura Geral do Sistema
 
-O ecossistema combina dois modelos de comunicação complementares[cite: 3]:
-* **Borda Externa (Client-to-Gateway):** Protocolo HTTP/1.1 com payloads em formato JSON e autenticação via tokens JWT (*JSON Web Tokens*)[cite: 3].
-* **Malha Interna (Service-to-Service):** Protocolo gRPC sobre HTTP/2 com serialização binária via *Protocol Buffers* (Protobuf), garantindo multiplexação de chamadas, tipagem rígida e baixa latência[cite: 3].
+O ecossistema combina dois modelos de comunicação complementares:
+* **Borda Externa (Client-to-Gateway):** Protocolo HTTP/1.1 com payloads em formato JSON e autenticação via tokens JWT (*JSON Web Tokens*).
+* **Malha Interna (Service-to-Service):** Protocolo gRPC sobre HTTP/2 com serialização binária via *Protocol Buffers* (Protobuf), garantindo multiplexação de chamadas, tipagem rígida e baixa latência.
 
 ```text
   [ Cliente Web (Navegador) ]             [ Nó Cliente de Carga (VM 2) ]
@@ -69,43 +69,43 @@ O ecossistema combina dois modelos de comunicação complementares[cite: 3]:
 ## ⚙️ Especificação dos Componentes e Microsserviços
 
 ### 1. API Gateway (`gateway/main.py` | Porta `:8000`)
-Atua como o ponto de entrada único (*Single Point of Contact*) para todos os clientes externos[cite: 3]:
-* **Segurança na Borda:** Interceta requisições protegidas verificando a assinatura e a expiração do token JWT emitido na rota `/auth/login`[cite: 3].
-* **Tradução de Protocolos:** Converte chamadas HTTP REST (JSON) em requisições gRPC binárias para os nós internos via canais gRPC dedicados (`insecure_channel`)[cite: 3].
+Atua como o ponto de entrada único (*Single Point of Contact*) para todos os clientes externos:
+* **Segurança na Borda:** Interceta requisições protegidas verificando a assinatura e a expiração do token JWT emitido na rota `/auth/login`.
+* **Tradução de Protocolos:** Converte chamadas HTTP REST (JSON) em requisições gRPC binárias para os nós internos via canais gRPC dedicados (`insecure_channel`).
 * **Injeção de Rastreabilidade:** Gera ou propaga o cabeçalho `x-correlation-id` nos metadados gRPC, permitindo rastrear uma transação por todos os serviços do cluster.
 * **Hospedagem Web:** Serve a interface gráfica estática (`frontend/index.html`) e a documentação interativa OpenAPI/Swagger (`/docs`).
 
 ### 2. Catalog Service (`catalog_service/server.py` | Porta `:50051`)
-Responsável pela integridade e governança das peças e frotas de veículos[cite: 3]:
+Responsável pela integridade e governança das peças e frotas de veículos:
 * Fornece a listagem de modelos automotivos homologados para manutenção.
-* Controla as quantidades disponíveis no almoxarifado de peças de reposição[cite: 3].
-* Realiza a baixa física de unidades sob demanda do serviço de diagnóstico (`BaixarEstoque`), garantindo que a quantidade nunca se torne negativa (`quantidade_estoque >= 0`)[cite: 3].
+* Controla as quantidades disponíveis no almoxarifado de peças de reposição.
+* Realiza a baixa física de unidades sob demanda do serviço de diagnóstico (`BaixarEstoque`), garantindo que a quantidade nunca se torne negativa (`quantidade_estoque >= 0`).
 * Permite reposição e ajuste manual de inventário pelo operador da oficina.
 
 ### 3. Diagnostic Service (`diagnostic_service/server.py` | Porta `:50052`)
-Atua como o **orquestrador transacional** do ciclo de vida das Ordens de Serviço[cite: 3]:
+Atua como o **orquestrador transacional** do ciclo de vida das Ordens de Serviço:
 * Regista novas OS com validação de vínculo entre cliente, veículo e peça a reparar.
 * Implementa o fluxo de conclusão: antes de liquidar o serviço, contacta o `CatalogService` para checagem de preço/peça, solicita a baixa do estoque físico e aciona o `BillingService` para apuração dos custos.
-* Executa o controlo de concorrência com bloqueio atómico de linha para impedir liquidações redundantes[cite: 3].
+* Executa o controlo de concorrência com bloqueio atómico de linha para impedir liquidações redundantes.
 
 ### 4. Billing Service (`billing_service/server.py` | Porta `:50053`)
-Centraliza as regras de tarifação financeira e emissão contábil[cite: 3]:
-* Calcula o custo dinâmico de mão de obra conforme a complexidade da categoria técnica da peça (`MOTOR`, `CAMBIO`, `FREIO`, `ELETRICA`, `SUSPENSAO` ou `GERAL`)[cite: 3].
+Centraliza as regras de tarifação financeira e emissão contábil:
+* Calcula o custo dinâmico de mão de obra conforme a complexidade da categoria técnica da peça (`MOTOR`, `CAMBIO`, `FREIO`, `ELETRICA`, `SUSPENSAO` ou `GERAL`).
 * Consolida o valor total (`Peça + Mão de Obra`).
-* Aplica tabelas de desconto por modalidade de pagamento (ex.: abatimento de 10% para pagamentos via PIX ou dinheiro em espécie)[cite: 3].
+* Aplica tabelas de desconto por modalidade de pagamento (ex.: abatimento de 10% para pagamentos via PIX ou dinheiro em espécie).
 * Persiste a fatura oficial associada à respetiva Ordem de Serviço na tabela `faturas`.
 
 ### 5. Frontend Operacional (`frontend/index.html`)
 Painel de controlo visual em modo escuro (*Dark Mode*), estilizado com Tailwind CSS e JavaScript:
 * **Feedback Imediato de Sessão:** Indicador luminoso de validação do token JWT.
-* **Triagem Preventiva (*Fail-Early*):** Deteta itens zerados no almoxarifado diretamente no menu seletor, impedindo a abertura de OS sem cobertura de peças[cite: 3].
+* **Triagem Preventiva (*Fail-Early*):** Deteta itens zerados no almoxarifado diretamente no menu seletor, impedindo a abertura de OS sem cobertura de peças.
 * **Monitor de Ordens e Almoxarifado:** Exibe o estado em tempo real de cada veículo em manutenção e cartões de inventário com ajuste rápido de saldo.
 * **Modal de Pagamento e Quitação:** Interface para escolha do método de pagamento (PIX, Dinheiro, Cartão) e exibição do recibo detalhado com o desconto concedido.
 
 ### 6. Banco de Dados Relacional Gerenciado (GCP Cloud SQL | Porta `:5432`)
-Instância gerenciada de **PostgreSQL 17** em nuvem, garantindo[cite: 3]:
-* Isolamento de transações e durabilidade (ACID)[cite: 3].
-* Suporte nativo a bloqueios explícitos por linha (`FOR UPDATE`)[cite: 3].
+Instância gerenciada de **PostgreSQL 17** em nuvem, garantindo:
+* Isolamento de transações e durabilidade (ACID).
+* Suporte nativo a bloqueios explícitos por linha (`FOR UPDATE`).
 * Integridade referencial entre veículos, diagnósticos, peças e faturas.
 
   ---
@@ -155,31 +155,31 @@ Em sistemas distribuídos sem coordenação, requisições paralelas podem incor
 O AutoDiag neutraliza esse risco através de três camadas defensivas:
 
 ### 1. Prevenção Antecipada (*Fail-Early*)
-O frontend e o Gateway realizam a verificação do saldo de peças antes de submeter requisições à malha interna[cite: 3]. Peças com 0 unidades em inventário são sinalizadas e bloqueadas preventivamente, reduzindo tráfego desnecessário na rede gRPC[cite: 3].
+O frontend e o Gateway realizam a verificação do saldo de peças antes de submeter requisições à malha interna. Peças com 0 unidades em inventário são sinalizadas e bloqueadas preventivamente, reduzindo tráfego desnecessário na rede gRPC.
 
 ### 2. Bloqueio Pessimista de Linha (`SELECT ... FOR UPDATE`)
-A liquidação das ordens utiliza **bloqueio pessimista de linha (`SELECT ... FOR UPDATE`)** no PostgreSQL[cite: 3]:
+A liquidação das ordens utiliza **bloqueio pessimista de linha (`SELECT ... FOR UPDATE`)** no PostgreSQL:
 ```sql
 SELECT id, peca_id, status FROM diagnosticos WHERE id = %s FOR UPDATE;
 ```
-* A primeira requisição que alcança o registo obtém o bloqueio exclusivo da linha no PostgreSQL[cite: 3].
-* As requisições concorrentes subsequentes ficam retidas na fila do gestor de base de dados[cite: 3].
-* Assim que a primeira transação debita o estoque, emite a fatura e atualiza o estado para `CONCLUIDO`, as requisições retidas são libertadas e rejeitadas pelo novo estado já consolidado[cite: 3].
+* A primeira requisição que alcança o registo obtém o bloqueio exclusivo da linha no PostgreSQL.
+* As requisições concorrentes subsequentes ficam retidas na fila do gestor de base de dados.
+* Assim que a primeira transação debita o estoque, emite a fatura e atualiza o estado para `CONCLUIDO`, as requisições retidas são libertadas e rejeitadas pelo novo estado já consolidado.
 
 ### 3. Idempotência Transacional
-A transição de estado da ordem é unívoca e atómica[cite: 3]. Uma vez concluída, chamadas repetidas retornam erro amigável sem provocar novos débitos ou emissão duplicada de faturas[cite: 3].
+A transição de estado da ordem é unívoca e atómica. Uma vez concluída, chamadas repetidas retornam erro amigável sem provocar novos débitos ou emissão duplicada de faturas.
 
 ---
 
 ## 🌐 Topologia de Infraestrutura (GCP)
 
-A infraestrutura foi dividida em duas instâncias virtuais no **Google Cloud Compute Engine** dentro da mesma região, interagindo através de redes públicas e privadas[cite: 3]:
+A infraestrutura foi dividida em duas instâncias virtuais no **Google Cloud Compute Engine** dentro da mesma região, interagindo através de redes públicas e privadas:
 
 | Nó de Infraestrutura | Nome da Máquina | Função no Ecossistema |
 | :--- | :--- | :--- |
-| **VM 1 (Servidor)** | `autodiag-server` | Executa o Gateway FastAPI, os 3 nós gRPC e serve o frontend SPA[cite: 3]. |
-| **VM 2 (Cliente)** | `autodiag-client` | Nó isolado executando scripts concorrentes para validação de carga e integridade[cite: 3]. |
-| **Base de Dados Gerida** | `autodiag-db` (Cloud SQL) | PostgreSQL 17 hospedado em VPC segura acessado pelos serviços via credenciais encriptadas[cite: 3]. |
+| **VM 1 (Servidor)** | `autodiag-server` | Executa o Gateway FastAPI, os 3 nós gRPC e serve o frontend SPA. |
+| **VM 2 (Cliente)** | `autodiag-client` | Nó isolado executando scripts concorrentes para validação de carga e integridade. |
+| **Base de Dados Gerida** | `autodiag-db` (Cloud SQL) | PostgreSQL 17 hospedado em VPC segura acessado pelos serviços via credenciais encriptadas. |
 
 ---
 
@@ -256,12 +256,12 @@ JWT_ALGORITHM=HS256
    source venv/bin/activate
    ```
 
-3. Instale os pacotes e dependências[cite: 4]:
+3. Instale os pacotes e dependências:
    ```bash
    pip install -r requirements.txt
    ```
 
-4. Inicie todos os nós da aplicação de forma automatizada[cite: 3, 4]:
+4. Inicie todos os nós da aplicação de forma automatizada:
    ```bash
    chmod +x iniciar_sistema.sh
    ./iniciar_sistema.sh
@@ -275,7 +275,7 @@ JWT_ALGORITHM=HS256
 
 ### Na VM 2 (Cliente de Testes Remoto)
 
-1. Conecte-se à máquina cliente via SSH e prepare o ambiente[cite: 4]:
+1. Conecte-se à máquina cliente via SSH e prepare o ambiente:
    ```bash
    sudo apt update && sudo apt install -y python3 python3-pip git
    git clone [https://github.com/KaikeAndrade00/autodiag.git](https://github.com/KaikeAndrade00/autodiag.git)
@@ -283,7 +283,7 @@ JWT_ALGORITHM=HS256
    pip install requests --break-system-packages
    ```
 
-2. Execute o cliente interativo de concorrência[cite: 3, 4]:
+2. Execute o cliente interativo de concorrência[, 4]:
    ```bash
    python3 cliente_concorrencia.py
    ```
@@ -292,38 +292,38 @@ JWT_ALGORITHM=HS256
 
 ## 🔌 Endpoints da API REST (Gateway)
 
-Todas as rotas de negócio requerem cabeçalho de autorização HTTP com token Bearer (`Authorization: Bearer <TOKEN_JWT>`), com exceção da autenticação inicial[cite: 3]:
+Todas as rotas de negócio requerem cabeçalho de autorização HTTP com token Bearer (`Authorization: Bearer <TOKEN_JWT>`), com exceção da autenticação inicial:
 
 | Método | Rota | Protegida por JWT | Descrição da Operação |
 | :---: | :--- | :---: | :--- |
-| `POST` | `/auth/login` | Não | Autentica as credenciais do operador e retorna o Bearer Token JWT[cite: 3]. |
-| `GET` | `/api/v1/veiculos` | Sim | Consulta o catálogo de veículos automotivos registados[cite: 3]. |
-| `GET` | `/api/v1/pecas` | Sim | Consulta a listagem de peças com os saldos físicos em armazém[cite: 3]. |
-| `POST` | `/api/v1/pecas/{id}/ajustar-estoque` | Sim | Adiciona ou deduz unidades de uma peça no inventário[cite: 3]. |
-| `GET` | `/api/v1/diagnosticos` | Sim | Retorna o histórico de todas as Ordens de Serviço registadas[cite: 3]. |
-| `POST` | `/api/v1/diagnosticos` | Sim | Abre uma nova OS associando cliente, veículo e sintoma reportado[cite: 3]. |
-| `PUT` | `/api/v1/diagnosticos/{id}/concluir` | Sim | Dispara o fluxo transacional de liquidação, baixa e faturação da OS[cite: 3]. |
+| `POST` | `/auth/login` | Não | Autentica as credenciais do operador e retorna o Bearer Token JWT. |
+| `GET` | `/api/v1/veiculos` | Sim | Consulta o catálogo de veículos automotivos registados. |
+| `GET` | `/api/v1/pecas` | Sim | Consulta a listagem de peças com os saldos físicos em armazém. |
+| `POST` | `/api/v1/pecas/{id}/ajustar-estoque` | Sim | Adiciona ou deduz unidades de uma peça no inventário. |
+| `GET` | `/api/v1/diagnosticos` | Sim | Retorna o histórico de todas as Ordens de Serviço registadas. |
+| `POST` | `/api/v1/diagnosticos` | Sim | Abre uma nova OS associando cliente, veículo e sintoma reportado. |
+| `PUT` | `/api/v1/diagnosticos/{id}/concluir` | Sim | Dispara o fluxo transacional de liquidação, baixa e faturação da OS. |
 
 ---
 
 ## 📜 Contratos de Interface (Protocol Buffers)
 
-A comunicação entre o API Gateway e os serviços de retaguarda é regida por esquemas estritos definidos no diretório `protos/`[cite: 4]:
+A comunicação entre o API Gateway e os serviços de retaguarda é regida por esquemas estritos definidos no diretório `protos/`:
 
-* **`catalog.proto`:** Mensagens `Peca`, `Veiculo`, `BaixarEstoqueRequest`, `AjustarEstoqueRequest` e o serviço `CatalogService` com os métodos `ListarPecas`, `ListarVeiculos`, `ObterPecaPorId`, `BaixarEstoque` e `AjustarEstoque`[cite: 4].
-* **`diagnostic.proto`:** Mensagens `CriarDiagnosticoRequest`, `Diagnostico`, `ConcluirDiagnosticoRequest` e o serviço `DiagnosticService` com os métodos `CriarDiagnostico`, `ListarDiagnosticos` e `ConcluirDiagnostico`[cite: 4].
-* **`billing.proto`:** Mensagens `GerarFaturaRequest`, `Fatura` e o serviço `BillingService` com o método `GerarFatura`[cite: 4].
+* **`catalog.proto`:** Mensagens `Peca`, `Veiculo`, `BaixarEstoqueRequest`, `AjustarEstoqueRequest` e o serviço `CatalogService` com os métodos `ListarPecas`, `ListarVeiculos`, `ObterPecaPorId`, `BaixarEstoque` e `AjustarEstoque`.
+* **`diagnostic.proto`:** Mensagens `CriarDiagnosticoRequest`, `Diagnostico`, `ConcluirDiagnosticoRequest` e o serviço `DiagnosticService` com os métodos `CriarDiagnostico`, `ListarDiagnosticos` e `ConcluirDiagnostico`.
+* **`billing.proto`:** Mensagens `GerarFaturaRequest`, `Fatura` e o serviço `BillingService` com o método `GerarFatura`.
 
 ---
 
 ## 🧪 Teste de Concorrência e Validação Distribuída
 
-Para validar a integridade transacional perante a banca avaliadora, o script `client/cliente_concorrencia.py` recorre ao módulo `concurrent.futures.ThreadPoolExecutor` para submeter rajadas de requisições paralelas através da rede pública[cite: 3, 4].
+Para validar a integridade transacional perante a banca avaliadora, o script `client/cliente_concorrencia.py` recorre ao módulo `concurrent.futures.ThreadPoolExecutor` para submeter rajadas de requisições paralelas através da rede pública[, 4].
 
 ### Cenário de Teste Executado
-* **Nó Emissor:** VM `autodiag-client` (instância remota)[cite: 3].
-* **Alvo:** Rota `PUT /api/v1/diagnosticos/{id}/concluir` na VM `autodiag-server`[cite: 3].
-* **Carga Simultânea:** 5 requisições de quitação disparadas no mesmo milissegundo sobre a mesma OS em estado `EM ANÁLISE`[cite: 1, 3].
+* **Nó Emissor:** VM `autodiag-client` (instância remota).
+* **Alvo:** Rota `PUT /api/v1/diagnosticos/{id}/concluir` na VM `autodiag-server`.
+* **Carga Simultânea:** 5 requisições de quitação disparadas no mesmo milissegundo sobre a mesma OS em estado `EM ANÁLISE`.
 
 ### Resultado Obtido no Terminal
 
@@ -345,4 +345,4 @@ Req #5   | HTTP 400       | 285.2ms    | 🛡️ BLOQUEADO (Esta ordem já foi c
 ============================================================
 ```
 
-O ensaio comprova que, mesmo sob carga concorrente originada externamente, o mecanismo de bloqueio pessimista assegura consistência estrita e preserva o inventário contra débitos duplicados[cite: 3].
+O ensaio comprova que, mesmo sob carga concorrente originada externamente, o mecanismo de bloqueio pessimista assegura consistência estrita e preserva o inventário contra débitos duplicados.
