@@ -458,7 +458,11 @@ async function confirmarAjusteModal() {
             veiculos.map(v => `<option value="${v.id}">${v.modelo} (${v.montadora} - ${v.ano})</option>`).join("");
           
           document.getElementById("peca_id").innerHTML = "<option value=\"\">Selecione a peça...</option>" +
-            pecas.map(p => `<option value="${p.id}">${p.nome} - R$ ${p.preco.toFixed(2)} (${p.categoria})</option>`).join("");
+            pecas.map(p => {
+              const semEstoque = p.quantidade_estoque <= 0;
+              const statusTxt = semEstoque ? "⚠️ [ESGOTADO / 0 un]" : `(${p.quantidade_estoque} un disp.)`;
+              return `<option value="${p.id}" data-estoque="${p.quantidade_estoque}">${p.nome} - R$ ${p.preco.toFixed(2)} ${statusTxt}</option>`;
+            }).join("");
 
           let totalEstoque = 0;
           const grid = document.getElementById("grid-estoque");
@@ -549,6 +553,16 @@ async function confirmarAjusteModal() {
       e.preventDefault();
       const btn = document.getElementById("btn-submit");
       btn.disabled = true;
+
+      const selPeca = document.getElementById("peca_id");
+      const optPeca = selPeca.options[selPeca.selectedIndex];
+      const saldoPeca = parseInt(optPeca ? optPeca.getAttribute("data-estoque") : "1");
+
+      if (saldoPeca <= 0) {
+        mostrarModalBloqueio("Abertura Bloqueada: A peça selecionada não possui unidades em estoque no almoxarifado (0 un). Ajuste o saldo antes de registrar a OS.");
+        btn.disabled = false;
+        return;
+      }
 
       const payload = {
         cliente_nome: document.getElementById("cliente_nome").value,
