@@ -136,7 +136,7 @@ class DiagnosticService(diagnostic_pb2_grpc.DiagnosticServiceServicer):
         try:
             conn = get_db_connection()
             cur = conn.cursor()
-            cur.execute("SELECT id, peca_id, status FROM diagnosticos WHERE id = %s;", (request.diagnostico_id,))
+            cur.execute("SELECT id, peca_id, status FROM diagnosticos WHERE id = %s FOR UPDATE;", (request.diagnostico_id,))
             row = cur.fetchone()
             if not row:
                 return diagnostic_pb2.DiagnosticoResponse(sucesso=False, mensagem="Ordem de diagnóstico não encontrada.")
@@ -172,7 +172,7 @@ class DiagnosticService(diagnostic_pb2_grpc.DiagnosticServiceServicer):
 
             # 4. Atualiza ordem no Cloud SQL
             cur.execute(
-                "UPDATE diagnosticos SET status = 'EM_ANALISE' WHERE id = %s RETURNING cliente_nome, veiculo_id, descricao_sintoma, data_criacao;",
+                "UPDATE diagnosticos SET status = 'CONCLUIDO' WHERE id = %s RETURNING cliente_nome, veiculo_id, descricao_sintoma, data_criacao;",
                 (diag_id,)
             )
             c_nome, v_id, desc, dt = cur.fetchone()
