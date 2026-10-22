@@ -128,7 +128,7 @@ def login(dados: LoginDTO):
 @app.get("/api/v1/veiculos", dependencies=[Depends(autenticar_jwt)])
 def listar_veiculos():
     try:
-        resp = catalog_stub.ListarVeiculos(catalog_pb2.EmptyRequest(), timeout=5)
+        resp = catalog_stub.ListarVeiculos(catalog_pb2.EmptyRequest(), timeout=8.0)
         return [{"id": v.id, "modelo": v.modelo, "montadora": v.montadora, "ano": v.ano} for v in resp.veiculos]
     except grpc.RpcError as e:
         raise HTTPException(status_code=503, detail=f"Erro gRPC: {e.details()}")
@@ -136,7 +136,7 @@ def listar_veiculos():
 @app.get("/api/v1/pecas", dependencies=[Depends(autenticar_jwt)])
 def listar_pecas():
     try:
-        resp = catalog_stub.ListarPecas(catalog_pb2.EmptyRequest(), timeout=5)
+        resp = catalog_stub.ListarPecas(catalog_pb2.EmptyRequest(), timeout=8.0)
         return [{
             "id": p.id, "nome": p.nome, "categoria": p.categoria,
             "codigo_referencia": p.codigo_referencia, "preco": p.preco,
@@ -152,7 +152,7 @@ def criar_diagnostico(dto: CriarDiagnosticoDTO):
             cliente_nome=dto.cliente_nome, veiculo_id=dto.veiculo_id,
             peca_id=dto.peca_id, descricao_sintoma=dto.descricao_sintoma
         )
-        resp = diagnostic_stub.CriarDiagnostico(req, timeout=5)
+        resp = diagnostic_stub.CriarDiagnostico(req, timeout=8.0)
         if not resp.sucesso:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=resp.mensagem)
         d = resp.diagnostico
@@ -171,7 +171,7 @@ def criar_diagnostico(dto: CriarDiagnosticoDTO):
 def listar_diagnosticos(status: Optional[str] = Query(None)):
     try:
         req = diagnostic_pb2.ListarDiagnosticosRequest(status_filtro=status or "")
-        resp = diagnostic_stub.ListarDiagnosticos(req, timeout=5)
+        resp = diagnostic_stub.ListarDiagnosticos(req, timeout=8.0)
         return [{
             "id": d.id, "cliente_nome": d.cliente_nome, "veiculo_id": d.veiculo_id,
             "veiculo_modelo": d.veiculo_modelo, "peca_id": d.peca_id, "peca_nome": d.peca_nome,
@@ -184,7 +184,7 @@ def listar_diagnosticos(status: Optional[str] = Query(None)):
 def concluir_diagnostico(id: int):
     try:
         req = diagnostic_pb2.ConcluirDiagnosticoRequest(diagnostico_id=id)
-        resp = diagnostic_stub.ConcluirDiagnostico(req, timeout=8)
+        resp = diagnostic_stub.ConcluirDiagnostico(req, timeout=8.0)
         if not resp.sucesso:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=resp.mensagem)
         return {"status": 200, "mensagem": resp.mensagem}
@@ -196,7 +196,7 @@ def concluir_diagnostico(id: int):
 def obter_fatura(diagnostico_id: int):
     try:
         req = billing_pb2.ObterFaturaRequest(diagnostico_id=diagnostico_id)
-        resp = billing_stub.ObterFaturaPorDiagnostico(req, timeout=5)
+        resp = billing_stub.ObterFaturaPorDiagnostico(req, timeout=8.0)
         if not resp.sucesso:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=resp.mensagem)
         f = resp.fatura
@@ -213,7 +213,7 @@ def obter_fatura(diagnostico_id: int):
 def pagar_fatura(fatura_id: int, dto: PagarFaturaDTO):
     try:
         req = billing_pb2.PagarFaturaRequest(fatura_id=fatura_id, forma_pagamento=dto.forma_pagamento)
-        resp = billing_stub.PagarFatura(req, timeout=5)
+        resp = billing_stub.PagarFatura(req, timeout=8.0)
         if not resp.sucesso:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=resp.mensagem)
         return {"status": 200, "mensagem": resp.mensagem}
@@ -239,7 +239,7 @@ def api_ajustar_estoque(peca_id: int, payload: AjusteEstoquePayload):
             quantidade=payload.quantidade,
             tipo=payload.tipo.upper()
         )
-        resp = catalog_stub.AjustarEstoque(req, metadata=metadata, timeout=5.0)
+        resp = catalog_stub.AjustarEstoque(req, metadata=metadata, timeout=8.0)
         if not resp.sucesso:
             status_erro = 409 if "insuficiente" in resp.mensagem.lower() else 400
             raise HTTPException(status_code=status_erro, detail=resp.mensagem)

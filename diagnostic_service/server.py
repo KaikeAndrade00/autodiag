@@ -54,11 +54,11 @@ class DiagnosticService(diagnostic_pb2_grpc.DiagnosticServiceServicer):
     def CriarDiagnostico(self, request, context):
         conn = None
         try:
-            resp_veic = catalog_stub.ObterVeiculoPorId(catalog_pb2.IdRequest(id=request.veiculo_id), timeout=3)
+            resp_veic = catalog_stub.ObterVeiculoPorId(catalog_pb2.IdRequest(id=request.veiculo_id), timeout=5.0)
             if not resp_veic.encontrado:
                 return diagnostic_pb2.DiagnosticoResponse(sucesso=False, mensagem=f"Veículo ID {request.veiculo_id} inexistente.")
             
-            resp_peca = catalog_stub.ObterPecaPorId(catalog_pb2.IdRequest(id=request.peca_id), timeout=3)
+            resp_peca = catalog_stub.ObterPecaPorId(catalog_pb2.IdRequest(id=request.peca_id), timeout=5.0)
             if not resp_peca.encontrado:
                 return diagnostic_pb2.DiagnosticoResponse(sucesso=False, mensagem=f"Peça ID {request.peca_id} inexistente.")
 
@@ -136,7 +136,7 @@ class DiagnosticService(diagnostic_pb2_grpc.DiagnosticServiceServicer):
         try:
             conn = get_db_connection()
             cur = conn.cursor()
-            cur.execute("SELECT id, peca_id, status FROM diagnosticos WHERE id = %s FOR UPDATE;", (request.diagnostico_id,))
+            cur.execute("SELECT id, peca_id, status FROM diagnosticos WHERE id = %s FOR NO KEY UPDATE;", (request.diagnostico_id,))
             row = cur.fetchone()
             if not row:
                 return diagnostic_pb2.DiagnosticoResponse(sucesso=False, mensagem="Ordem de diagnóstico não encontrada.")
@@ -146,13 +146,13 @@ class DiagnosticService(diagnostic_pb2_grpc.DiagnosticServiceServicer):
                 return diagnostic_pb2.DiagnosticoResponse(sucesso=False, mensagem="Esta ordem já foi concluída anteriormente.")
 
             # 1. Consulta peça e sua categoria no CatalogService
-            resp_peca = catalog_stub.ObterPecaPorId(catalog_pb2.IdRequest(id=peca_id), timeout=3)
+            resp_peca = catalog_stub.ObterPecaPorId(catalog_pb2.IdRequest(id=peca_id), timeout=5.0)
             preco_peca = resp_peca.peca.preco if resp_peca.encontrado else 150.00
             categoria_peca = resp_peca.peca.categoria if resp_peca.encontrado else "GERAL"
 
             # 2. Executa baixa física da peça
             resp_estoque = catalog_stub.BaixarEstoque(
-                catalog_pb2.BaixarEstoqueRequest(peca_id=peca_id, quantidade=1), timeout=4
+                catalog_pb2.BaixarEstoqueRequest(peca_id=peca_id, quantidade=1), timeout=5.0
             )
             if not resp_estoque.sucesso:
                 return diagnostic_pb2.DiagnosticoResponse(sucesso=False, mensagem=resp_estoque.mensagem)
@@ -163,7 +163,7 @@ class DiagnosticService(diagnostic_pb2_grpc.DiagnosticServiceServicer):
                     diagnostico_id=diag_id,
                     valor_peca=preco_peca,
                     categoria_peca=categoria_peca
-                ), timeout=4
+                ), timeout=5.0
             )
             if not resp_fatura.sucesso:
                 return diagnostic_pb2.DiagnosticoResponse(
