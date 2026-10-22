@@ -158,13 +158,13 @@ O AutoDiag neutraliza esse risco através de três camadas defensivas:
 O frontend e o Gateway realizam a verificação do saldo de peças antes de submeter requisições à malha interna. Peças com 0 unidades em inventário são sinalizadas e bloqueadas preventivamente, reduzindo tráfego desnecessário na rede gRPC.
 
 ### 2. Bloqueio Pessimista de Linha (`SELECT ... FOR UPDATE`)
-A liquidação das ordens utiliza **bloqueio pessimista de linha (`SELECT ... FOR UPDATE`)** no PostgreSQL:
+A liquidação das ordens utiliza **bloqueio pessimista de linha (`SELECT ... FOR NO KEY UPDATE`)** no PostgreSQL:
 ```sql
-SELECT id, peca_id, status FROM diagnosticos WHERE id = %s FOR UPDATE;
+SELECT id, peca_id, status FROM diagnosticos WHERE id = %s FOR NO KEY UPDATE;
 ```
-* A primeira requisição que alcança o registo obtém o bloqueio exclusivo da linha no PostgreSQL.
-* As requisições concorrentes subsequentes ficam retidas na fila do gestor de base de dados.
-* Assim que a primeira transação debita o estoque, emite a fatura e atualiza o estado para `CONCLUIDO`, as requisições retidas são libertadas e rejeitadas pelo novo estado já consolidado.
+* protege os campos da ordem contra alterações simultâneas sem impedir a validação referencial da fatura.
+* Fila de Execução Serializada: A primeira transação obtém o bloqueio exclusivo de escrita na linha. Requisições concorrentes paralelas aguardam a conclusão da transação ativa.
+* Transição Atômica de Estado: Assim que a primeira transação realiza a baixa no catálogo, liquida o faturamento e comuta o status para CONCLUIDO via COMMIT, as requisições em espera são liberadas sequencialmente, encontram a ordem já finalizada e são rejeitadas de forma controlada pela regra de negócio.
 
 ### 3. Idempotência Transacional
 A transição de estado da ordem é unívoca e atómica. Uma vez concluída, chamadas repetidas retornam erro amigável sem provocar novos débitos ou emissão duplicada de faturas.
