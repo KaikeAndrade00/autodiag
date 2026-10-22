@@ -86,7 +86,7 @@ Responsável pela integridade e governança das peças e frotas de veículos:
 Atua como o **orquestrador transacional** do ciclo de vida das Ordens de Serviço:
 * Regista novas OS com validação de vínculo entre cliente, veículo e peça a reparar.
 * Implementa o fluxo de conclusão: antes de liquidar o serviço, contacta o `CatalogService` para checagem de preço/peça, solicita a baixa do estoque físico e aciona o `BillingService` para apuração dos custos.
-* Executa o controlo de concorrência com bloqueio atómico de linha para impedir liquidações redundantes.
+* Executa o controle de concorrência com bloqueio atómico de linha para impedir liquidações redundantes.
 
 ### 4. Billing Service (`billing_service/server.py` | Porta `:50053`)
 Centraliza as regras de tarifação financeira e emissão contábil:
@@ -96,7 +96,7 @@ Centraliza as regras de tarifação financeira e emissão contábil:
 * Persiste a fatura oficial associada à respetiva Ordem de Serviço na tabela `faturas`.
 
 ### 5. Frontend Operacional (`frontend/index.html`)
-Painel de controlo visual em modo escuro (*Dark Mode*), estilizado com Tailwind CSS e JavaScript:
+Painel de controle visual em modo escuro (*Dark Mode*), estilizado com Tailwind CSS e JavaScript:
 * **Feedback Imediato de Sessão:** Indicador luminoso de validação do token JWT.
 * **Triagem Preventiva (*Fail-Early*):** Deteta itens zerados no almoxarifado diretamente no menu seletor, impedindo a abertura de OS sem cobertura de peças.
 * **Monitor de Ordens e Almoxarifado:** Exibe o estado em tempo real de cada veículo em manutenção e cartões de inventário com ajuste rápido de saldo.
@@ -148,7 +148,7 @@ Instância gerenciada de **PostgreSQL 17** em nuvem, garantindo:
 
 ---
 
-## 🛡️ Controlo de Concorrência e Resiliência Transacional
+## 🛡️ controle de Concorrência e Resiliência Transacional
 
 Em sistemas distribuídos sem coordenação, requisições paralelas podem incorrer em condições de corrida (*Race Conditions*) do tipo **Time-of-Check to Time-of-Use (TOCTOU)**: múltiplos processos leem simultaneamente que um registo está aberto e disparam efeitos colaterais de forma redundante.
 
